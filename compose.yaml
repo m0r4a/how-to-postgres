@@ -148,6 +148,26 @@ services:
       - '--storage.tsdb.retention.time=90d'
       - '--storage.tsdb.retention.size=10GB'
 
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:13.2
+    ports:
+      - 3000:3000
+    volumes:
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_DATABASE_TYPE=postgres
+      - GF_DATABASE_HOST=db:5432
+      - GF_DATABASE_NAME=${GRAFANA_DB_NAME}
+      - GF_DATABASE_USER=${GRAFANA_DB_USERNAME}
+      - GF_DATABASE_PASSWORD=${GRAFANA_DB_PASSWORD}
+    networks:
+      - monitoring
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   traefik-letsencrypt:
   prometheus-data:
