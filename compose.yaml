@@ -136,13 +136,19 @@ services:
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.14.0
-    ports:
-      - 9090:9090
     volumes:
       - prometheus-data:/prometheus
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - monitoring
+      - public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public"
+      - "traefik.http.routers.prometheus.rule=Host(`${PROMETHEUS_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=cloudflare"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=90d'
@@ -151,8 +157,6 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:13.2
-    ports:
-      - 3000:3000
     volumes:
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
@@ -161,9 +165,17 @@ services:
       - GF_DATABASE_NAME=${GRAFANA_DB_NAME}
       - GF_DATABASE_USER=${GRAFANA_DB_USERNAME}
       - GF_DATABASE_PASSWORD=${GRAFANA_DB_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public"
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
       - monitoring
       - db
+      - public
     depends_on:
       db:
         condition: service_healthy
