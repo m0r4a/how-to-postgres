@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+
 services:
   db:
     image: postgres:18-bookworm
@@ -131,8 +133,24 @@ services:
       db:
         condition: service_healthy
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.14.0
+    ports:
+      - 9090:9090
+    volumes:
+      - prometheus-data:/prometheus
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=10GB'
+
 volumes:
   traefik-letsencrypt:
+  prometheus-data:
 
 networks:
   public:
