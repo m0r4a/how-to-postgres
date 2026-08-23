@@ -110,6 +110,27 @@ services:
       - public
       - db
 
+  otel-collector:
+    container_name: collector
+    build:
+      context: ./build-otel-collector
+      dockerfile: Dockerfile
+      args:
+        BUILDER_VERSION: 0.159.0
+    environment:
+      OTELC_POSTGRES_USERNAME: ${OTEL_POSTGRES_USERNAME}
+      OTELC_POSTGRES_PASSWORD: ${OTEL_POSTGRES_PASSWORD}
+    volumes:
+      - ./config/otel-collector/otel-config.yaml:/otel/otel-config.yaml
+    ports:
+      - "8889:8889"
+    networks:
+      - db
+      - monitoring
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   traefik-letsencrypt:
 
@@ -118,4 +139,8 @@ networks:
     name: public
     driver: bridge
   db:
+    name: db
+    driver: bridge
+  monitoring:
+    name: monitoring
     driver: bridge

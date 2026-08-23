@@ -1,0 +1,41 @@
+receivers:
+  postgresql:
+    endpoint: db:5432
+    transport: tcp
+    username: "${env:OTELC_POSTGRES_USERNAME}"
+    password: "${env:OTELC_POSTGRES_PASSWORD}"
+    databases: []
+    collection_interval: 10s
+    tls:
+      insecure: true
+
+processors:
+  # This prevents OTel from consuming all the memory
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 150
+    spike_limit_mib: 30
+
+  # Injects some metadata for Grafana
+  attributes/env:
+    actions:
+      - key: environment
+        value: "homelab"
+        action: insert
+
+  # Compresses the data before exporting it
+  batch:
+    send_batch_size: 100
+    timeout: 10s
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    send_timestamps: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [postgresql]
+      processors: [memory_limiter, attributes/env, batch]
+      exporters: [prometheus]

@@ -1,0 +1,18 @@
+dist:
+  name: otelcol-custom
+  description: "Otel Collector for PostgreSQL"
+  output_path: .
+  otelcol_version: v${BUILDER_VERSION}
+
+exporters:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v${BUILDER_VERSION}
+  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v${BUILDER_VERSION}
+  - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v${BUILDER_VERSION}
+
+receivers:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver v${BUILDER_VERSION}
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v${BUILDER_VERSION}
+  - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v${BUILDER_VERSION}
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v${BUILDER_VERSION}

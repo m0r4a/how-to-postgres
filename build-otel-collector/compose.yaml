@@ -1,0 +1,45 @@
+services:
+  otel-collector:
+    container_name: collector
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # https://pkg.go.dev/go.opentelemetry.io/collector/cmd/builder
+        BUILDER_VERSION: 0.159.0
+    environment:
+      # This env var is passed to the otel-config.yaml
+      POSTGRES_PASSWORD: ${DB_MONITOR_PASSWORD}
+    volumes:
+      - ./otel-config.yaml:/otel/otel-config.yaml
+    ports:
+      - "8889:8889"
+    networks:
+      - backend-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/18/main
+      - ./init-monitor.sql:/docker-entrypoint-initdb.d/init-monitor.sql
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  backend-net:
+    driver: bridge
+
+volumes:
+  pg_data:

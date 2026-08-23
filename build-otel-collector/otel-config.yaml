@@ -1,0 +1,53 @@
+receivers:
+  postgresql:
+    endpoint: postgres:5432
+    transport: tcp
+    username: otel_monitor
+    password: "${env:POSTGRES_PASSWORD}"
+    databases:
+      - test_db
+    collection_interval: 5s # 10s is the default
+    # FOR LOCAL TESTING ONLY
+    tls:
+      insecure: true
+
+processors:
+  # This prevents OTel from consuming all the memory
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 150
+    spike_limit_mib: 30
+
+  # Injects some metadata for Grafana
+  attributes/env:
+    actions:
+      - key: environment
+        value: "homelab"
+        action: insert
+      - key: cluster
+        value: "proxmox-core"
+        action: insert
+
+  # Compresses the data before exporting it
+  batch:
+    send_batch_size: 100
+    timeout: 10s
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    # This enables support for Prometheus Resource Attributes
+    send_timestamps: true
+
+  # THIS IS ONLY FOR DEBUGGING, it prints the raw metrics to stdout
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    metrics:
+      # THE ORDER OF THE PROCESSORS MATTERS
+      # memory_limiter SHOULD be first, and batch SHOULD be last
+      receivers: [postgresql]
+      processors: [memory_limiter, attributes/env, batch]
+      exporters: [prometheus, debug] # DO NOT USE `debug` IN PROD
