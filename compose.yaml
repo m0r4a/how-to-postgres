@@ -1,0 +1,121 @@
+services:
+  db:
+    image: postgres:18-bookworm
+    container_name: db
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USR}
+      POSTGRES_PASSWORD: ${POSTGRES_PWD}
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements,auto_explain
+      -c pg_stat_statements.track=all
+      -c auto_explain.log_min_duration=500ms
+      -c auto_explain.log_analyze=on
+      -c track_io_timing=on
+      -c log_checkpoints=on
+      -c log_autovacuum_min_duration=0
+      -c archive_mode=on
+      -c archive_command='pgbackrest --stanza=main archive-push %p'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USR}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - db
+
+  traefik:
+    image: traefik:v3.7.10
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    environment:
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks:
+      - public
+
+  atuin:
+    restart: always
+    image: ghcr.io/atuinsh/atuin:18.19.0
+    container_name: atuin
+    command: start
+    volumes:
+      - "./config/atuin:/config"
+    ports:
+      - 8888:8888
+    environment:
+      ATUIN_HOST: "0.0.0.0"
+      ATUIN_OPEN_REGISTRATION: "true"
+      ATUIN_DB_URI: postgres://${ATUIN_DB_USERNAME}:${ATUIN_DB_PASSWORD}@db/${ATUIN_DB_NAME}
+      RUST_LOG: info,atuin_server=debug
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public"
+      - "traefik.http.routers.atuin.rule=Host(`${ATUIN_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.atuin.entrypoints=websecure"
+      - "traefik.http.routers.atuin.tls.certresolver=cloudflare"
+      - "traefik.http.services.atuin.loadbalancer.server.port=8888"
+    networks:
+      - public
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+
+  miniflux:
+    image: miniflux/miniflux:2.3.3
+    container_name: miniflux
+    environment:
+      - DATABASE_URL=postgres://${MINIFLUX_DB_USERNAME}:${MINIFLUX_DB_PASSWORD}@db/${MINIFLUX_DB_NAME}?sslmode=disable
+      - RUN_MIGRATIONS=1
+      - CREATE_ADMIN=1
+      - ADMIN_USERNAME=${MINIFLUX_USERNAME}
+      - ADMIN_PASSWORD=${MINIFLUX_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public"
+      - "traefik.http.routers.miniflux.rule=Host(`${MINIFLUX_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.miniflux.entrypoints=websecure"
+      - "traefik.http.routers.miniflux.tls.certresolver=cloudflare"
+      - "traefik.http.services.miniflux.loadbalancer.server.port=8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - public
+      - db
+
+volumes:
+  traefik-letsencrypt:
+
+networks:
+  public:
+    name: public
+    driver: bridge
+  db:
+    driver: bridge
