@@ -23,6 +23,16 @@ processors:
         value: "homelab"
         action: insert
 
+  # Adds some resource attributes as labels
+  transform/db_labels:
+    metric_statements:
+      - context: datapoint
+        statements:
+        - set(attributes["db_name"], resource.attributes["postgresql.database.name"]) where resource.attributes["postgresql.database.name"] != nil
+        - set(attributes["table_name"], resource.attributes["postgresql.table.name"]) where resource.attributes["postgresql.table.name"] != nil
+        # The index is way too excesive imo but I want to see how useful it actually is and form an opinion about adding it
+        - set(attributes["index_name"], resource.attributes["postgresql.index.name"]) where resource.attributes["postgresql.index.name"] != nil
+
   # Compresses the data before exporting it
   batch:
     send_batch_size: 100
@@ -33,9 +43,12 @@ exporters:
     endpoint: "0.0.0.0:8889"
     send_timestamps: true
 
+  debug:
+    verbosity: detailed
+
 service:
   pipelines:
     metrics:
       receivers: [postgresql]
-      processors: [memory_limiter, attributes/env, batch]
+      processors: [memory_limiter, attributes/env, transform/db_labels, batch]
       exporters: [prometheus]
