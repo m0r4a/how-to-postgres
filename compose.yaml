@@ -112,6 +112,26 @@ services:
       - public
       - db
 
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    container_name: docker-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1 
+      POST: 0
+      DELETE: 0
+      AUTH: 0
+      BUILD: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/containers/json || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - docker-socket
+
   otel-collector:
     container_name: collector
     build:
@@ -129,8 +149,11 @@ services:
     networks:
       - db
       - monitoring
+      - docker-socket
     depends_on:
       db:
+        condition: service_healthy
+      docker-proxy:
         condition: service_healthy
 
   prometheus:
@@ -193,4 +216,7 @@ networks:
     driver: bridge
   monitoring:
     name: monitoring
+    driver: bridge
+  docker-socket:
+    name: docker-socket
     driver: bridge

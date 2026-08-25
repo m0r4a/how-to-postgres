@@ -9,6 +9,11 @@ receivers:
     tls:
       insecure: true
 
+  docker_stats:
+    endpoint: "tcp://docker-proxy:2375" 
+    collection_interval: 10s
+    timeout: 5s
+
 processors:
   # This prevents OTel from consuming all the memory
   memory_limiter:
@@ -16,11 +21,17 @@ processors:
     limit_mib: 150
     spike_limit_mib: 30
 
-  # Injects some metadata for Grafana
-  attributes/env:
+  # Injects some labels to prometheus
+  attributes/environment:
     actions:
       - key: environment
         value: "homelab"
+        action: insert
+
+  attributes/postgres_job:
+    actions:
+      - key: job
+        value: "postgres"
         action: insert
 
   # Adds some resource attributes as labels
@@ -32,6 +43,19 @@ processors:
         - set(attributes["table_name"], resource.attributes["postgresql.table.name"]) where resource.attributes["postgresql.table.name"] != nil
         # The index is way too excesive imo but I want to see how useful it actually is and form an opinion about adding it
         - set(attributes["index_name"], resource.attributes["postgresql.index.name"]) where resource.attributes["postgresql.index.name"] != nil
+
+  attributes/docker_job:
+    actions:
+      - key: job
+        value: "docker"
+        action: insert
+
+  transform/docker_labels:
+    metric_statements:
+      - context: datapoint
+        statements:
+        - set(attributes["name"], resource.attributes["container.name"]) where resource.attributes["container.name"] != nil
+        - set(attributes["image"], resource.attributes["container.image.name"]) where resource.attributes["container.image.name"] != nil
 
   # Compresses the data before exporting it
   batch:
@@ -48,7 +72,12 @@ exporters:
 
 service:
   pipelines:
-    metrics:
+    metrics/postgres:
       receivers: [postgresql]
-      processors: [memory_limiter, attributes/env, transform/db_labels, batch]
+      processors: [memory_limiter, attributes/environment, attributes/postgres_job, transform/db_labels, batch]
+      exporters: [prometheus]
+
+    metrics/docker:
+      receivers: [docker_stats]
+      processors: [memory_limiter, attributes/environment, attributes/docker_job, transform/docker_labels, batch]
       exporters: [prometheus]

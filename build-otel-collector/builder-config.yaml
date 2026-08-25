@@ -12,6 +12,7 @@ exporters:
 
 receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver v${BUILDER_VERSION}
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/dockerstatsreceiver v${BUILDER_VERSION}
 
 processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v${BUILDER_VERSION}
