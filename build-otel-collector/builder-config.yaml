@@ -9,6 +9,7 @@ exporters:
   - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v${BUILDER_VERSION}
   - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v${BUILDER_VERSION}
   - gomod: go.opentelemetry.io/collector/exporter/debugexporter v${BUILDER_VERSION}
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v${BUILDER_VERSION}
 
 receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver v${BUILDER_VERSION}

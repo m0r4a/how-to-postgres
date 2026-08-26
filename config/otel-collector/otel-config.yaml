@@ -1,9 +1,9 @@
 receivers:
   postgresql:
-    endpoint: db:5432
+    endpoint: "${env:OTEL_POSTGRES_ENDPOINT}"
     transport: tcp
-    username: "${env:OTELC_POSTGRES_USERNAME}"
-    password: "${env:OTELC_POSTGRES_PASSWORD}"
+    username: "${env:OTEL_POSTGRES_USERNAME}"
+    password: "${env:OTEL_POSTGRES_PASSWORD}"
     databases: []
     collection_interval: 10s
     tls:
@@ -70,14 +70,26 @@ exporters:
   debug:
     verbosity: detailed
 
+  clickhouse:
+    endpoint: "${env:OTEL_CLICKHOUSE_ENDPOINT}"
+    username: "${env:OTEL_CLICKHOUSE_USERNAME}"
+    password: "${env:OTEL_CLICKHOUSE_PASSWORD}"
+    database: otel
+
+    sending_queue:
+      num_consumers: 10
+      batch:
+        min_size: 5000
+        flush_timeout: 5s
+
 service:
   pipelines:
     metrics/postgres:
       receivers: [postgresql]
       processors: [memory_limiter, attributes/environment, attributes/postgres_job, transform/db_labels, batch]
-      exporters: [prometheus]
+      exporters: [prometheus, clickhouse]
 
     metrics/docker:
       receivers: [docker_stats]
       processors: [memory_limiter, attributes/environment, attributes/docker_job, transform/docker_labels, batch]
-      exporters: [prometheus]
+      exporters: [prometheus, clickhouse]
