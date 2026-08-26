@@ -186,6 +186,7 @@ services:
     container_name: grafana
     image: grafana/grafana:13.2
     volumes:
+      - grafana-data:/var/lib/grafana
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_DATABASE_TYPE=postgres
@@ -211,6 +212,7 @@ services:
 volumes:
   traefik-letsencrypt:
   prometheus-data:
+  grafana-data:
 
 networks:
   public:
