@@ -12,8 +12,10 @@ services:
       - ./config/otel-collector/otel-config.clickhouse.yaml:/otel/otel-config.clickhouse.yaml
     command:
       [
+        "./otelcol-custom",
         "--config",
         "otel-config.yaml",
         "--config",
         "otel-config.clickhouse.yaml",
       ]
+
