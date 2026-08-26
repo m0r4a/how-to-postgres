@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+
+# docker compose -f compose.yaml -f compose.clickhouse.yaml up -d
+services:
+  otel-collector:
+    environment:
+      OTEL_CLICKHOUSE_ENDPOINT: ${OTEL_CLICKHOUSE_ENDPOINT}
+      OTEL_CLICKHOUSE_USERNAME: ${OTEL_CLICKHOUSE_USERNAME}
+      OTEL_CLICKHOUSE_PASSWORD: ${OTEL_CLICKHOUSE_PASSWORD}
+      OTEL_CLICKHOUSE_DB: ${OTEL_CLICKHOUSE_DB}
+    volumes:
+      - ./config/otel-collector/otel-config.clickhouse.yaml:/otel/otel-config.clickhouse.yaml
+    command:
+      [
+        "--config",
+        "otel-config.yaml",
+        "--config",
+        "otel-config.clickhouse.yaml",
+      ]

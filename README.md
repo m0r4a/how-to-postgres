@@ -17,3 +17,30 @@ The ultimate goal is to understand the core loop: *"Action X causes Y, which loo
 I'm currently on **Step 3**. I'm using [my OCB starter template](https://github.com/m0r4a/OTel-Collector-Builder-OCB-Starter-Template) to easily build a custom OpenTelemetry collector, and I'm starting to put together the dashboards. 
 
 The immediate plan is to run the collector with only the basics enabled, build the Grafana dashboard, and let it run for a week. After that, I will enable *all* the extra telemetry. Since this is a small DB, the overhead will likely be minimal, but I want to see the difference firsthand and form an educated opinion on what is actually worth toggling on in a real-world environment.
+
+### Running the stack
+
+Copy `.env.example` to `.env` and fill it in first.
+
+**Base (Postgres + Prometheus + Grafana):**
+
+```bash
+docker compose up -d
+```
+
+This is the self-contained project. The OTel Collector ships PostgreSQL and container
+metrics to Prometheus, and Grafana reads from there. It does **not** depend on any
+external service — this is the mode to use by default.
+
+**With ClickHouse:**
+
+```bash
+docker compose -f compose.yaml -f compose.clickhouse.yaml up -d
+```
+
+I also run a separate, **external** ClickHouse instance for [my clickhouse project](https://github.com/m0r4a/how-to-clickhouse), I fan metrics out to it
+to experiment. I wanted to decouple it using (`compose.clickhouse.yaml`) plus a config overlay (`config/otel-collector/otel-config.clickhouse.yaml`) that get merged on top of the base
+config so you can still use this project as intended.
+
+The point of this split is that a missing/unreachable ClickHouse can no longer take the
+whole collector down, the base project stays alive on its own, and ClickHouse is just and opt-in. Set the `OTEL_CLICKHOUSE_*` variables in `.env` before using this mode.

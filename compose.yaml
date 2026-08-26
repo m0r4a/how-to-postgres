@@ -10,8 +10,8 @@ services:
       - 5432:5432
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_DB:       ${POSTGRES_DB}
-      POSTGRES_USER:     ${POSTGRES_USR}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USR}
       POSTGRES_PASSWORD: ${POSTGRES_PWD}
     command: >
       postgres
@@ -117,7 +117,7 @@ services:
     container_name: docker-proxy
     restart: unless-stopped
     environment:
-      CONTAINERS: 1 
+      CONTAINERS: 1
       POST: 0
       DELETE: 0
       AUTH: 0
@@ -125,7 +125,11 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/containers/json || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://127.0.0.1:2375/containers/json || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -140,13 +144,9 @@ services:
       args:
         BUILDER_VERSION: 0.159.0
     environment:
-      OTEL_POSTGRES_ENDPOINT:   ${OTEL_POSTGRES_ENDPOINT}
-      OTEL_POSTGRES_USERNAME:   ${OTEL_POSTGRES_USERNAME}
-      OTEL_POSTGRES_PASSWORD:   ${OTEL_POSTGRES_PASSWORD}
-      OTEL_CLICKHOUSE_ENDPOINT: ${OTEL_CLICKHOUSE_ENDPOINT}
-      OTEL_CLICKHOUSE_USERNAME: ${OTEL_CLICKHOUSE_USERNAME}
-      OTEL_CLICKHOUSE_PASSWORD: ${OTEL_CLICKHOUSE_PASSWORD}
-      OTEL_CLICKHOUSE_DB:       ${OTEL_CLICKHOUSE_DB}
+      OTEL_POSTGRES_ENDPOINT: ${OTEL_POSTGRES_ENDPOINT}
+      OTEL_POSTGRES_USERNAME: ${OTEL_POSTGRES_USERNAME}
+      OTEL_POSTGRES_PASSWORD: ${OTEL_POSTGRES_PASSWORD}
     volumes:
       - ./config/otel-collector/otel-config.yaml:/otel/otel-config.yaml
     ports:
@@ -178,9 +178,9 @@ services:
       - "traefik.http.routers.prometheus.tls.certresolver=cloudflare"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=90d'
-      - '--storage.tsdb.retention.size=10GB'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=90d"
+      - "--storage.tsdb.retention.size=10GB"
 
   grafana:
     container_name: grafana

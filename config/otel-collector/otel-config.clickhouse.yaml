@@ -1,0 +1,30 @@
+# Optional ClickHouse overlay for the OTel Collector.
+
+# It is merged ON TOP of otel-config.yaml by passing both with --config
+# (see compose.clickhouse.yaml). The collector deep-merges maps but
+# REPLACES lists, so each pipeline's full `exporters` list is redeclared
+# here (it is not appended).
+
+# Only when you run the clickhouse thingy
+#   docker compose -f compose.yaml -f compose.clickhouse.yaml up -d
+
+exporters:
+  clickhouse:
+    endpoint: "${env:OTEL_CLICKHOUSE_ENDPOINT}"
+    username: "${env:OTEL_CLICKHOUSE_USERNAME}"
+    password: "${env:OTEL_CLICKHOUSE_PASSWORD}"
+    database: "${env:OTEL_CLICKHOUSE_DB}"
+
+    sending_queue:
+      num_consumers: 10
+      batch:
+        min_size: 5000
+        flush_timeout: 5s
+
+service:
+  pipelines:
+    metrics/postgres:
+      exporters: [prometheus, clickhouse]
+
+    metrics/docker:
+      exporters: [prometheus, clickhouse]

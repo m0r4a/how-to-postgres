@@ -10,7 +10,7 @@ receivers:
       insecure: true
 
   docker_stats:
-    endpoint: "tcp://docker-proxy:2375" 
+    endpoint: "tcp://docker-proxy:2375"
     collection_interval: 10s
     timeout: 5s
 
@@ -39,10 +39,10 @@ processors:
     metric_statements:
       - context: datapoint
         statements:
-        - set(attributes["db_name"], resource.attributes["postgresql.database.name"]) where resource.attributes["postgresql.database.name"] != nil
-        - set(attributes["table_name"], resource.attributes["postgresql.table.name"]) where resource.attributes["postgresql.table.name"] != nil
-        # The index is way too excesive imo but I want to see how useful it actually is and form an opinion about adding it
-        - set(attributes["index_name"], resource.attributes["postgresql.index.name"]) where resource.attributes["postgresql.index.name"] != nil
+          - set(attributes["db_name"], resource.attributes["postgresql.database.name"]) where resource.attributes["postgresql.database.name"] != nil
+          - set(attributes["table_name"], resource.attributes["postgresql.table.name"]) where resource.attributes["postgresql.table.name"] != nil
+          # The index is way too excesive imo but I want to see how useful it actually is and form an opinion about adding it
+          - set(attributes["index_name"], resource.attributes["postgresql.index.name"]) where resource.attributes["postgresql.index.name"] != nil
 
   attributes/docker_job:
     actions:
@@ -54,8 +54,8 @@ processors:
     metric_statements:
       - context: datapoint
         statements:
-        - set(attributes["name"], resource.attributes["container.name"]) where resource.attributes["container.name"] != nil
-        - set(attributes["image"], resource.attributes["container.image.name"]) where resource.attributes["container.image.name"] != nil
+          - set(attributes["name"], resource.attributes["container.name"]) where resource.attributes["container.name"] != nil
+          - set(attributes["image"], resource.attributes["container.image.name"]) where resource.attributes["container.image.name"] != nil
 
   # Compresses the data before exporting it
   batch:
@@ -70,26 +70,28 @@ exporters:
   debug:
     verbosity: detailed
 
-  clickhouse:
-    endpoint: "${env:OTEL_CLICKHOUSE_ENDPOINT}"
-    username: "${env:OTEL_CLICKHOUSE_USERNAME}"
-    password: "${env:OTEL_CLICKHOUSE_PASSWORD}"
-    database: "${env:OTEL_CLICKHOUSE_DB}"
-
-    sending_queue:
-      num_consumers: 10
-      batch:
-        min_size: 5000
-        flush_timeout: 5s
-
 service:
   pipelines:
     metrics/postgres:
       receivers: [postgresql]
-      processors: [memory_limiter, attributes/environment, attributes/postgres_job, transform/db_labels, batch]
-      exporters: [prometheus, clickhouse]
+      processors:
+        [
+          memory_limiter,
+          attributes/environment,
+          attributes/postgres_job,
+          transform/db_labels,
+          batch,
+        ]
+      exporters: [prometheus]
 
     metrics/docker:
       receivers: [docker_stats]
-      processors: [memory_limiter, attributes/environment, attributes/docker_job, transform/docker_labels, batch]
-      exporters: [prometheus, clickhouse]
+      processors:
+        [
+          memory_limiter,
+          attributes/environment,
+          attributes/docker_job,
+          transform/docker_labels,
+          batch,
+        ]
+      exporters: [prometheus]
