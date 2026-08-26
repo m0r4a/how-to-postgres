@@ -74,7 +74,7 @@ exporters:
     endpoint: "${env:OTEL_CLICKHOUSE_ENDPOINT}"
     username: "${env:OTEL_CLICKHOUSE_USERNAME}"
     password: "${env:OTEL_CLICKHOUSE_PASSWORD}"
-    database: otel
+    database: "${env:OTEL_CLICKHOUSE_DB}"
 
     sending_queue:
       num_consumers: 10
