@@ -9,17 +9,21 @@ receivers:
     tls:
       insecure: true
 
-  docker_stats:
-    endpoint: "tcp://docker-proxy:2375"
-    collection_interval: 10s
-    timeout: 5s
+  # 0001 -> 0002
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "cadvisor"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["cadvisor:8080"]
 
 processors:
   # This prevents OTel from consuming all the memory
   memory_limiter:
     check_interval: 1s
-    limit_mib: 150
-    spike_limit_mib: 30
+    limit_mib: 1024
+    spike_limit_mib: 200
 
   # Injects some labels to prometheus
   attributes/environment:
@@ -43,19 +47,6 @@ processors:
           - set(attributes["table_name"], resource.attributes["postgresql.table.name"]) where resource.attributes["postgresql.table.name"] != nil
           # The index is way too excesive imo but I want to see how useful it actually is and form an opinion about adding it
           - set(attributes["index_name"], resource.attributes["postgresql.index.name"]) where resource.attributes["postgresql.index.name"] != nil
-
-  attributes/docker_job:
-    actions:
-      - key: job
-        value: "docker"
-        action: insert
-
-  transform/docker_labels:
-    metric_statements:
-      - context: datapoint
-        statements:
-          - set(attributes["name"], resource.attributes["container.name"]) where resource.attributes["container.name"] != nil
-          - set(attributes["image"], resource.attributes["container.image.name"]) where resource.attributes["container.image.name"] != nil
 
   # Compresses the data before exporting it
   batch:
@@ -84,14 +75,8 @@ service:
         ]
       exporters: [prometheus]
 
-    metrics/docker:
-      receivers: [docker_stats]
-      processors:
-        [
-          memory_limiter,
-          attributes/environment,
-          attributes/docker_job,
-          transform/docker_labels,
-          batch,
-        ]
+    # 0001 -> 0002
+    metrics/cadvisor:
+      receivers: [prometheus]
+      processors: [memory_limiter, attributes/environment, batch]
       exporters: [prometheus]
