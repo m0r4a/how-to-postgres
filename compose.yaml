@@ -112,29 +112,6 @@ services:
       - public
       - db
 
-  otel-collector:
-    container_name: collector
-    build:
-      context: ./build-otel-collector
-      dockerfile: Dockerfile
-      args:
-        BUILDER_VERSION: 0.159.0
-    environment:
-      OTEL_POSTGRES_ENDPOINT: ${OTEL_POSTGRES_ENDPOINT}
-      OTEL_POSTGRES_USERNAME: ${OTEL_POSTGRES_USERNAME}
-      OTEL_POSTGRES_PASSWORD: ${OTEL_POSTGRES_PASSWORD}
-    volumes:
-      - ./config/otel-collector/otel-config.yaml:/otel/otel-config.yaml
-    ports:
-      - "8889:8889"
-    networks:
-      - db
-      - monitoring
-      - docker-socket
-    depends_on:
-      db:
-        condition: service_healthy
-
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.14.0
