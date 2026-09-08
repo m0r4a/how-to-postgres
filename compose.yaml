@@ -6,6 +6,7 @@ services:
     container_name: db
     volumes:
       - /var/lib/postgresql/data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
     ports:
       - 5432:5432
     environment:
@@ -188,6 +189,8 @@ services:
       - DATA_SOURCE_URI=${PE_POSTGRES_URI}
       - DATA_SOURCE_USER=${PE_POSTGRES_USERNAME}
       - DATA_SOURCE_PASS=${PE_POSTGRES_PASSWORD}
+    command:
+      - "--collector.stat_activity_autovacuum"
     networks:
       - monitoring
       - db
