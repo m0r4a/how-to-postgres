@@ -181,6 +181,20 @@ services:
     networks:
       - monitoring
 
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: postgres_exporter
+    environment:
+      - DATA_SOURCE_URI=${PE_POSTGRES_URI}
+      - DATA_SOURCE_USER=${PE_POSTGRES_USERNAME}
+      - DATA_SOURCE_PASS=${PE_POSTGRES_PASSWORD}
+    networks:
+      - monitoring
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   traefik-letsencrypt:
   prometheus-data:
