@@ -69,3 +69,4 @@ Strike through a row when its record is no longer active.
 | [0002](0002-replace-docker-stats-with-cadvisor.md) | Replace docker_stats with cAdvisor for container metrics | 2026-09-03 |
 | [0003](0003-drop-otel-collector.md) | Stop using the OpenTelemetry Collector | 2026-09-08 |
 | [0004](0004-disable-stat-statements.md) | Disable the `--collector.stat_statements` flag for the prometheus postgres exporter | 2026-09-08 |
+| [0005][0005-changing-direction-of-the-project.md] | Change the direction of the project to a purely pgbench database | 2026-09-15

@@ -11,7 +11,7 @@ datasources:
       allowAsRecordingRulesTarget: true
       prometheusType: Prometheus
       prometheusVersion: 3.14.0
-      cacheLevel: 'High'
+      cacheLevel: "High"
       disableRecordingRules: false
       seriesEndpoint: false
       timeInterval: 10s

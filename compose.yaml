@@ -4,9 +4,16 @@ services:
   db:
     image: postgres:18-bookworm
     container_name: db
+    restart: unless-stopped
+    # Incident 27 is an OOM kill, this is needed
+    mem_limit: 1g
     volumes:
-      - /var/lib/postgresql/data:/var/lib/postgresql/data
-      - ./config/postgres/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
+      - pg-data:/var/lib/postgresql/data
+
+      # Mounted outside PGDATA and selected with -c config_file below.
+      # If you drop a file next to (and not inside) PGDATA is silently ignored by postgres.
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./scripts/setup.sh:/docker-entrypoint-initdb.d/setup.sh:ro
     ports:
       - 5432:5432
     environment:
@@ -14,15 +21,37 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USR}
       POSTGRES_PASSWORD: ${POSTGRES_PWD}
+
+      # Consumed by scripts/setup.sh on first boot only
+      # you can do "docker compose down -v" to wipe the named volume
+      PE_POSTGRES_USERNAME: ${PE_POSTGRES_USERNAME}
+      PE_POSTGRES_PASSWORD: ${PE_POSTGRES_PASSWORD}
+      MONITORING_DB_USERNAME: ${MONITORING_DB_USERNAME}
+      MONITORING_DB_PASSWORD: ${MONITORING_DB_PASSWORD}
+      PGBENCH_DB_USERNAME: ${PGBENCH_DB_USERNAME}
+      PGBENCH_DB_PASSWORD: ${PGBENCH_DB_PASSWORD}
+      PGBENCH_DB_NAME: ${PGBENCH_DB_NAME}
+
+    # Settings that only can be changed with a restart (max_connections, shared_buffers,
+    # max_prepared_transactions) live in config/postgres/postgresql.conf.
+
+    # "Reloadable" observability settings are set here so they apply from boot.
     command: >
       postgres
+      -c config_file=/etc/postgresql/postgresql.conf
       -c shared_preload_libraries=pg_stat_statements,auto_explain
       -c pg_stat_statements.track=all
       -c auto_explain.log_min_duration=500ms
       -c auto_explain.log_analyze=on
       -c track_io_timing=on
+      -c track_wal_io_timing=on
       -c log_checkpoints=on
+      -c log_lock_waits=on
       -c log_autovacuum_min_duration=0
+      -c log_temp_files=10MB
+      -c log_min_duration_statement=1000
+      -c "log_line_prefix=%m [%p] %a %u@%d "
+      -c max_slot_wal_keep_size=2GB
       -c archive_mode=on
       -c archive_command='pgbackrest --stanza=main archive-push %p'
     healthcheck:
@@ -62,66 +91,12 @@ services:
     networks:
       - public
 
-  atuin:
-    restart: always
-    image: ghcr.io/atuinsh/atuin:18.19.0
-    container_name: atuin
-    command: start
-    volumes:
-      - "./config/atuin:/config"
-    ports:
-      - 8888:8888
-    environment:
-      ATUIN_HOST: "0.0.0.0"
-      ATUIN_OPEN_REGISTRATION: "true"
-      ATUIN_DB_URI: postgres://${ATUIN_DB_USERNAME}:${ATUIN_DB_PASSWORD}@db/${ATUIN_DB_NAME}
-      RUST_LOG: info,atuin_server=debug
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=public"
-      - "traefik.http.routers.atuin.rule=Host(`${ATUIN_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.atuin.entrypoints=websecure"
-      - "traefik.http.routers.atuin.tls.certresolver=cloudflare"
-      - "traefik.http.services.atuin.loadbalancer.server.port=8888"
-    networks:
-      - public
-      - db
-    depends_on:
-      db:
-        condition: service_healthy
-
-  miniflux:
-    image: miniflux/miniflux:2.3.3
-    container_name: miniflux
-    environment:
-      - DATABASE_URL=postgres://${MINIFLUX_DB_USERNAME}:${MINIFLUX_DB_PASSWORD}@db/${MINIFLUX_DB_NAME}?sslmode=disable
-      - RUN_MIGRATIONS=1
-      - CREATE_ADMIN=1
-      - ADMIN_USERNAME=${MINIFLUX_USERNAME}
-      - ADMIN_PASSWORD=${MINIFLUX_PASSWORD}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=public"
-      - "traefik.http.routers.miniflux.rule=Host(`${MINIFLUX_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.miniflux.entrypoints=websecure"
-      - "traefik.http.routers.miniflux.tls.certresolver=cloudflare"
-      - "traefik.http.services.miniflux.loadbalancer.server.port=8080"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - public
-      - db
-
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.14.0
     volumes:
       - prometheus-data:/prometheus
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - monitoring
-      - public
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=public"
@@ -133,19 +108,18 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.retention.time=90d"
       - "--storage.tsdb.retention.size=10GB"
+    networks:
+      - monitoring
+      - public
 
   grafana:
     container_name: grafana
     image: grafana/grafana:13.2
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
-    environment:
-      - GF_DATABASE_TYPE=postgres
-      - GF_DATABASE_HOST=db:5432
-      - GF_DATABASE_NAME=${GRAFANA_DB_NAME}
-      - GF_DATABASE_USER=${GRAFANA_DB_USERNAME}
-      - GF_DATABASE_PASSWORD=${GRAFANA_DB_PASSWORD}
+      - ./config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - 3000:3000
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=public"
@@ -202,6 +176,7 @@ volumes:
   traefik-letsencrypt:
   prometheus-data:
   grafana-data:
+  pg-data:
 
 networks:
   public:
@@ -212,7 +187,4 @@ networks:
     driver: bridge
   monitoring:
     name: monitoring
-    driver: bridge
-  docker-socket:
-    name: docker-socket
     driver: bridge
