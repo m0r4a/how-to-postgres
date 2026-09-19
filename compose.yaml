@@ -8,7 +8,7 @@ services:
     # Incident 27 is an OOM kill, this is needed
     mem_limit: 1g
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - pg-data:/var/lib/postgresql/18/docker
 
       # Mounted outside PGDATA and selected with -c config_file below.
       # If you drop a file next to (and not inside) PGDATA is silently ignored by postgres.
@@ -17,7 +17,6 @@ services:
     ports:
       - 5432:5432
     environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USR}
       POSTGRES_PASSWORD: ${POSTGRES_PWD}
